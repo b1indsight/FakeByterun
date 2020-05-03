@@ -20,10 +20,20 @@ what_to_execute = {
     "numbers": [10, -1],
     "names": ["a"]}
 
+def test(c):
+    a = 5
+    b = 1
+    while a:
+        a = a - 1;
+        print(a) 
 
 if __name__ == "__main__":
-    interpreter = pyvm.Interpreter()
-    interpreter.run_code(what_to_execute)
-    print(list(interpreter.LOAD_NAME.__code__.co_code))
-    print(dis.dis(interpreter.LOAD_NAME))
-    print(dis.opname[124])
+    #interpreter = pyvm.Interpreter()
+    #interpreter.run_code(what_to_execute)
+    #print(list(interpreter.LOAD_NAME.__code__.co_code))
+    #print(dis.dis(interpreter.LOAD_NAME))
+    print(dis.dis(test))
+    tmp = {}
+    tmp = dis.dis(test)
+    for x in dis.get_instructions(test): 
+        print(x)
