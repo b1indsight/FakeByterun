@@ -5,7 +5,7 @@
         print a
 '''
 import dis
-import pyvm
+#import pyvm
 
 what_to_execute = {
     "instructions": [("LOAD_VALUE", 0),
@@ -20,12 +20,15 @@ what_to_execute = {
     "numbers": [10, -1],
     "names": ["a"]}
 
+def d(x):
+    return x
+
 def test(c):
-    a = 5
+    def e(x):
+        return x + 1
+    a = d(c)
     b = 1
-    while a:
-        a = a - 1;
-        print(a) 
+    return a + b + e(1)
 
 if __name__ == "__main__":
     #interpreter = pyvm.Interpreter()

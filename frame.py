@@ -2,7 +2,7 @@ class frame:
     """frame is use to description of the function object in vm runing time,
     it's maintain sth below:
         code object, global names, local names, prev frame, opreands stack,
-    builtin_names is the """
+    f_builtins is the """
 
     def __init__(self, code_obj, global_names, local_names, prev_frame):
         """frame is a code block of method 
@@ -13,17 +13,18 @@ class frame:
             local_names {[type]} -- local name space
             prev_frame {[type]} -- [description]
         """
-        self.code_obj = code_obj
-        self.global_names = global_names
-        self.local_names = local_names
-        self.prev_frame = prev_frame
+        self.f_code = code_obj
+        self.f_globals = global_names
+        self.f_locals = local_names
+        self.f_back = prev_frame
         self.stack = []
-        if prev_frame:
-            self.builtin_names = prev_frame.builtin_names
+        if f_back:
+            self.f_builtins = f_back.f_builtins
         else:
-            self.builtin_names = local_names['__builtins__']
-            if hasattr(self.builtin_names, '__dict__'):
-                self.builtin_names = self.builtin_names.__dict__
+            self.f_builtins = local_names['__builtins__']
+            if hasattr(self.f_builtins, '__dict__'):
+                self.f_builtins = self.f_builtins.__dict__
     
+        #PC
         self.last_instruction = 0
         self.block_stack = []

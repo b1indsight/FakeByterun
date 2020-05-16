@@ -8,7 +8,10 @@ import logging
 class VirtualMachineError():
     pass
 
-class Interpreter:
+"""code_obj 
+
+"""
+class VirtualMachine:
 
     def __init__(self):
         self.frames = []   # The call stack of frames.
@@ -37,31 +40,39 @@ class Interpreter:
         else:
             return []
 
-    #TODO code obj 格式要类似与what_to_execute， 
+    #NOTE code_obj.co_code is similar to b'd\x00d\x01\x84\x00Z\x00d\x02S\x00'
+    #NOTE this function is used to get a {bytecode:argument} dict
     def prase_byte_code_and_argument(self):
         f = self.frame
-        byteCode, arg_val = f.code_obj["instructions"][f.last_instruction] 
-        #TODO code obj want's to set as a list[turple]
+        opoffset = f.last_instruction
+        byteCode = f.code_obj.co_code[opoffset]
+        byteName = dis.opname[byteCode]
+        arg = None
+        arguments = []
+        
         f.last_instruction += 1
         byte_name = dis.opname[byteCode]
         
         if byteCode >= dis.HAVE_ARGUMENT:
+            arg = f.f_code.co_code[f.f_lasti:f.f_lasti+2]
+            f.last_instruction += 2
+            intArg = arg[0] + (arg[1] << 8)
             # index into the bytecode
             if byteCode in dis.hasconst:   # Look up a constant
-                arg = f.code_obj["numbers"][arg_val]
+                arg = f.f_code.co_const[intArg]
             elif byteCode in dis.hasname:  # Look up a name
-                arg = f.code_obj["names"][arg_val]
+                arg = f.f_code.co_name[intArg]
             elif byteCode in dis.haslocal: # Look up a local name
-                arg = f.code_obj["localnames"][arg_val]
+                arg = f.f_code.co_varnames[intArg]
             elif byteCode in dis.hasjrel:  # Calculate a relative jump
-                arg = f.last_instruction + arg_val / 2 
+                arg = f.last_instruction + intArg
             else:
-                arg = arg_val
+                arg = intArg
             argument = [arg]
         else:
             argument = []
 
-        return byte_name, argument
+        return byte_name, argument, opoffset
 
     def dispatch(self, byteName, arguments):
         """ Dispatch by bytename to the corresponding methods.
@@ -74,70 +85,12 @@ class Interpreter:
                     "unknown bytecode type: %s" % byteName
                 )
             bytecode_fn(*arguments)
-            
-
-    def NOP(self):
-        pass
-
-    def LOAD_VALUE(self, number):
-        self.stack.append(number)
-
-    def LOAD_NAME(self, name):
-        self.stack.append(self.enviornment.get(name))
-    
-    def STORE_NAME(self, name):
-        val = self.stack.pop()
-        self.enviornment[name] = val
-
-    def MAKE_FUNCTION(self, argc):
-        name = self.pop()
-        code = self.pop()
-        defaults = self.popn(argc)
-        globs = self.frame.f_globals
-        fn = Function(name, code, globs, defaults, None, self)
-        self.push(fn)
-
-    def CALL_FUNCTION(self, arg):
-        arg = self.popn(arg)
-        func = self.pop()
-        frame = self.frame
-        code = func.func_code
-        self.make_frame(code, callarg,frame.global_names, frame.local_names)
-        self.run_frame()
-
-    def PRINT_ANSWER(self):
-        answer = self.stack.pop()
-        print(answer)
-
-    def PRINT_NOT_POP(self):
-        print(self.stack[-1])
-
-    def ADD_TWO_VALUES(self):
-        first_num = self.stack.pop()
-        second_num = self.stack.pop()
-        total = first_num + second_num
-        self.stack.append(total)
-
-    def jump(self, jump):
-        self.pc = jump
-
-    def JUMP(self, jump):
-        self.jump(jump)
-
-    def POP_JUMP_IF_FALSE(self, jump):
-        val = self.stack.pop()
-        if val:
-            self.stack.append(val)
-            return
-        else:
-            self.jump(jump)
-            
 
     def run_code(self, code, global_names=None, local_names=None):
         """ An entry point to execute code using the virtual machine."""
         frame = self.make_frame(code, global_names=global_names, 
                                 local_names=local_names)
-        self.run_frame(frame)
+        return self.run_frame(frame)
 
     def make_frame(self, code, callargs={}, global_names=None, local_names=None):
         """create a frame when vm is running, when vm invoke a function ,then create
@@ -147,7 +100,7 @@ class Interpreter:
             code {[type]} -- code object 
 
         Keyword Arguments:
-            callargs {dict} -- args  (default: {{}})
+            calla88rgs {dict} -- args  (default: {{}})
             global_names {[type]} -- [description] (default: {None})
             local_names {[type]} -- [description] (default: {None})
 
@@ -183,11 +136,67 @@ class Interpreter:
             self.frame = None
 
     def run_frame(self, frame):
-        self.push_frame(frame)
         while True:
-            byteName, arguments, opoffset = self.parse_byte_and_args()
+            byteName, arguments, opoffset= self.prase_byte_code_and_argument()
             if log.isEnabledFor(logging.INFO):
-                self.log(byteName, arguments, opoffset)
+                self.log(byteName, arguments)
             self.dispatch(byteName, arguments)
+            if (byteName == "RETURN_VALUE"):
+                break
 
-            
+    # BYTE CODE 
+    def NOP(self):
+        pass
+
+    def LOAD_CONST(self, number):
+        self.stack.append(number)
+
+    def LOAD_FAST(self, name):
+        self.stack.append(self.enviornment.get(name))
+    
+    def STORE_FAST(self, name):
+        val = self.stack.pop()
+        self.enviornment[name] = val
+
+    def MAKE_FUNCTION(self, argc):
+        name = self.pop()
+        code = self.pop()
+        defaults = self.popn(argc)
+        globs = self.frame.f_globals
+        fn = Function(name, code, globs, defaults, None, self)
+        self.push(fn)
+
+    def CALL_FUNCTION(self, arg):
+        arg = self.popn(arg)
+        func = self.pop()
+        frame = self.frame
+        code = func.func_code
+        self.make_frame(code, callarg,frame.global_names, frame.local_names)
+        self.run_frame()
+
+    def PRINT_ANSWER(self):
+        answer = self.stack.pop()
+        print(answer)
+
+    def PRINT_NOT_POP(self):
+        print(self.stack[-1])
+
+    def BINARY_ADD(self):
+        first_num = self.stack.pop()
+        second_num = self.stack.pop()
+        total = first_num + second_num
+        self.stack.append(total)
+
+    def jump(self, jump):
+        self.pc = jump
+
+    def JUMP(self, jump):
+        self.jump(jump)
+
+    def POP_JUMP_IF_FALSE(self, jump):
+        val = self.stack.pop()
+        if val:
+            self.stack.append(val)
+            return
+        else:
+            self.jump(jump)

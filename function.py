@@ -23,8 +23,6 @@ class Function(object):
         self.func_locals = self._vm.frame.f_locals
         self.__dict__ = {}
         self.func_closure = closure
-        self.__doc__ = code.co_consts[0] if code.co_consts else None
-
         # Sometimes, we need a real Python function.  This is for that.
         kw = {
             'argdefs': self.func_defaults,
