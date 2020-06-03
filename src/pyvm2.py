@@ -1,16 +1,20 @@
-import frame
-from logging import log
 import dis
 import sys
-from function import Function
+from .function import Function
+from .frame import frame
 import logging
+
+log = logging.getLogger(__name__)
 
 class VirtualMachineError():
     pass
 
+
 """code_obj 
 
 """
+
+
 class VirtualMachine:
 
     def __init__(self):
@@ -20,6 +24,7 @@ class VirtualMachine:
         self.last_exception = None
 
     """ This part is used to help oprate the operand stack"""
+
     def top(self):
         return self.frame.stack[-1]
 
@@ -40,34 +45,33 @@ class VirtualMachine:
         else:
             return []
 
-    #NOTE code_obj.co_code is similar to b'd\x00d\x01\x84\x00Z\x00d\x02S\x00'
-    #NOTE this function is used to get a {bytecode:argument} dict
+    # NOTE code_obj.co_code is similar to b'd\x00d\x01\x84\x00Z\x00d\x02S\x00'
+    # NOTE this function is used to get a {bytecode:argument} dict
     def prase_byte_code_and_argument(self):
         f = self.frame
         opoffset = f.last_instruction
-        byteCode = f.code_obj.co_code[opoffset]
+        byteCode = f.f_code.co_code[opoffset]
         byteName = dis.opname[byteCode]
         arg = None
         arguments = []
-        
-        f.last_instruction += 1
+
+        f.last_instruction += 2
         byte_name = dis.opname[byteCode]
-        
+
         if byteCode >= dis.HAVE_ARGUMENT:
-            arg = f.f_code.co_code[f.f_lasti:f.f_lasti+2]
-            f.last_instruction += 2
-            intArg = arg[0] + (arg[1] << 8)
+            arg = f.f_code.co_code[f.last_instruction-1]
+            
             # index into the bytecode
             if byteCode in dis.hasconst:   # Look up a constant
-                arg = f.f_code.co_const[intArg]
+                arg = f.f_code.co_consts[arg]
             elif byteCode in dis.hasname:  # Look up a name
-                arg = f.f_code.co_name[intArg]
-            elif byteCode in dis.haslocal: # Look up a local name
-                arg = f.f_code.co_varnames[intArg]
+                arg = f.f_code.co_names[arg]
+            elif byteCode in dis.haslocal:  # Look up a local name
+                arg = f.f_code.co_varnames[arg]
             elif byteCode in dis.hasjrel:  # Calculate a relative jump
-                arg = f.last_instruction + intArg
+                arg = f.last_instruction + arg
             else:
-                arg = intArg
+                arg = arg
             argument = [arg]
         else:
             argument = []
@@ -80,19 +84,21 @@ class VirtualMachine:
         try:
             # dispatch
             bytecode_fn = getattr(self, byteName)
-            if not bytecode_fn:            
+            if not bytecode_fn:
                 raise VirtualMachineError(
                     "unknown bytecode type: %s" % byteName
                 )
             bytecode_fn(*arguments)
+        except:
+            log.exception("here is a exception")
 
     def run_code(self, code, global_names=None, local_names=None):
         """ An entry point to execute code using the virtual machine."""
-        frame = self.make_frame(code, global_names=global_names, 
+        frame = self.make_frame(code, global_names=global_names,
                                 local_names=local_names)
         return self.run_frame(frame)
 
-    def make_frame(self, code, callargs={}, global_names=None, local_names=None):
+    def make_frame(self, code, position_args=[], callargs={}, global_names=None, local_names=None):
         """create a frame when vm is running, when vm invoke a function ,then create
         a frame
 
@@ -100,7 +106,7 @@ class VirtualMachine:
             code {[type]} -- code object 
 
         Keyword Arguments:
-            calla88rgs {dict} -- args  (default: {{}})
+            callargs {dict} -- args  (default: {{}})
             global_names {[type]} -- [description] (default: {None})
             local_names {[type]} -- [description] (default: {None})
 
@@ -111,7 +117,7 @@ class VirtualMachine:
         if global_names is not None and local_names is None:
             local_names = global_names
         elif self.frames:
-            global_names = self.frame.global_names
+            global_names = self.frame.f_globals
             local_names = {}
         else:
             global_names = local_names = {
@@ -121,8 +127,8 @@ class VirtualMachine:
                 '__package__': None,
             }
         local_names.update(callargs)
-        frame = frame(code, global_names, local_names, self.frame)
-        return frame
+        re_frame = frame(code, global_names, local_names, self.frame)
+        return re_frame
 
     def push_frame(self, frame):
         self.frames.append(frame)
@@ -136,27 +142,41 @@ class VirtualMachine:
             self.frame = None
 
     def run_frame(self, frame):
+        self.push_frame(frame)
         while True:
-            byteName, arguments, opoffset= self.prase_byte_code_and_argument()
+            byteName, arguments, opoffset = self.prase_byte_code_and_argument()
             if log.isEnabledFor(logging.INFO):
                 self.log(byteName, arguments)
-            self.dispatch(byteName, arguments)
-            if (byteName == "RETURN_VALUE"):
+            if (byteName == '<0>'):
                 break
+            if (byteName == "RETURN_VALUE"):
+                self.return_value = self.pop()
+                break
+            self.dispatch(byteName, arguments)
 
-    # BYTE CODE 
+    # BYTE CODE
     def NOP(self):
         pass
 
     def LOAD_CONST(self, number):
-        self.stack.append(number)
+        self.push(number)
+        
+
+    def LOAD_NAME(self, name):
+        self.push(self.frame.f_locals.get(name))
+
+    def STORE_NAME(self, name):
+        val = self.pop()
+        self.frame.f_locals[name] = val
 
     def LOAD_FAST(self, name):
-        self.stack.append(self.enviornment.get(name))
-    
-    def STORE_FAST(self, name):
-        val = self.stack.pop()
-        self.enviornment[name] = val
+        if name in self.frame.f_locals:
+            val = self.frame.f_locals.get(name)
+        else:
+            raise UnboundLocalError(
+                "local variable '%s' referenced before assignment" % name
+            )
+        self.push(val)
 
     def MAKE_FUNCTION(self, argc):
         name = self.pop()
@@ -166,13 +186,15 @@ class VirtualMachine:
         fn = Function(name, code, globs, defaults, None, self)
         self.push(fn)
 
+    #TODO: how to get function's arg name and store them into f_locals 
     def CALL_FUNCTION(self, arg):
-        arg = self.popn(arg)
+        args = self.popn(arg)
         func = self.pop()
         frame = self.frame
         code = func.func_code
-        self.make_frame(code, callarg,frame.global_names, frame.local_names)
-        self.run_frame()
+        
+        f = self.make_frame(code, args, {}, frame.f_globals, frame.f_locals)
+        self.run_frame(f)
 
     def PRINT_ANSWER(self):
         answer = self.stack.pop()
@@ -182,10 +204,10 @@ class VirtualMachine:
         print(self.stack[-1])
 
     def BINARY_ADD(self):
-        first_num = self.stack.pop()
-        second_num = self.stack.pop()
+        first_num = self.pop()
+        second_num = self.pop()
         total = first_num + second_num
-        self.stack.append(total)
+        self.push(total)
 
     def jump(self, jump):
         self.pc = jump

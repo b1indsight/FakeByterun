@@ -5,8 +5,10 @@ import sys
 from function import Function
 import logging
 
+
 class VirtualMachineError():
     pass
+
 
 class Interpreter:
 
@@ -17,6 +19,7 @@ class Interpreter:
         self.last_exception = None
 
     """ This part is used to help oprate the operand stack"""
+
     def top(self):
         return self.frame.stack[-1]
 
@@ -37,24 +40,24 @@ class Interpreter:
         else:
             return []
 
-    #TODO code obj 格式要类似与what_to_execute， 
+    # TODO code obj 格式要类似与what_to_execute，
     def prase_byte_code_and_argument(self):
         f = self.frame
-        byteCode, arg_val = f.code_obj["instructions"][f.last_instruction] 
-        #TODO code obj want's to set as a list[turple]
+        byteCode, arg_val = f.code_obj["instructions"][f.last_instruction]
+        # TODO code obj want's to set as a list[turple]
         f.last_instruction += 1
         byte_name = dis.opname[byteCode]
-        
+
         if byteCode >= dis.HAVE_ARGUMENT:
             # index into the bytecode
             if byteCode in dis.hasconst:   # Look up a constant
                 arg = f.code_obj["numbers"][arg_val]
             elif byteCode in dis.hasname:  # Look up a name
                 arg = f.code_obj["names"][arg_val]
-            elif byteCode in dis.haslocal: # Look up a local name
+            elif byteCode in dis.haslocal:  # Look up a local name
                 arg = f.code_obj["localnames"][arg_val]
             elif byteCode in dis.hasjrel:  # Calculate a relative jump
-                arg = f.last_instruction + arg_val / 2 
+                arg = f.last_instruction + arg_val / 2
             else:
                 arg = arg_val
             argument = [arg]
@@ -69,12 +72,11 @@ class Interpreter:
         try:
             # dispatch
             bytecode_fn = getattr(self, byteName)
-            if not bytecode_fn:            
+            if not bytecode_fn:
                 raise VirtualMachineError(
                     "unknown bytecode type: %s" % byteName
                 )
             bytecode_fn(*arguments)
-            
 
     def NOP(self):
         pass
@@ -84,7 +86,7 @@ class Interpreter:
 
     def LOAD_NAME(self, name):
         self.stack.append(self.enviornment.get(name))
-    
+
     def STORE_NAME(self, name):
         val = self.stack.pop()
         self.enviornment[name] = val
@@ -102,7 +104,7 @@ class Interpreter:
         func = self.pop()
         frame = self.frame
         code = func.func_code
-        self.make_frame(code, callarg,frame.global_names, frame.local_names)
+        self.make_frame(code, callarg, frame.global_names, frame.local_names)
         self.run_frame()
 
     def PRINT_ANSWER(self):
@@ -131,11 +133,10 @@ class Interpreter:
             return
         else:
             self.jump(jump)
-            
 
     def run_code(self, code, global_names=None, local_names=None):
         """ An entry point to execute code using the virtual machine."""
-        frame = self.make_frame(code, global_names=global_names, 
+        frame = self.make_frame(code, global_names=global_names,
                                 local_names=local_names)
         self.run_frame(frame)
 
@@ -189,5 +190,3 @@ class Interpreter:
             if log.isEnabledFor(logging.INFO):
                 self.log(byteName, arguments, opoffset)
             self.dispatch(byteName, arguments)
-
-            

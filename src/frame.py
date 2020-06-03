@@ -18,8 +18,8 @@ class frame:
         self.f_locals = local_names
         self.f_back = prev_frame
         self.stack = []
-        if f_back:
-            self.f_builtins = f_back.f_builtins
+        if self.f_back:
+            self.f_builtins = self.f_back.f_builtins
         else:
             self.f_builtins = local_names['__builtins__']
             if hasattr(self.f_builtins, '__dict__'):

@@ -9,7 +9,7 @@ class Function(object):
     __slots__ = [
         'func_code', 'func_name', 'func_defaults', 'func_globals',
         'func_locals', 'func_dict', 'func_closure',
-        '__name__', '__dict__', '__doc__',
+        '__name__', '__dict__', 
         '_vm', '_func',
     ]
 
@@ -22,6 +22,7 @@ class Function(object):
         self.func_globals = globs
         self.func_locals = self._vm.frame.f_locals
         self.__dict__ = {}
+        self.__doc__ = code.co_consts[0] if code.co_consts else None
         self.func_closure = closure
         # Sometimes, we need a real Python function.  This is for that.
         kw = {

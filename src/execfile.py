@@ -3,7 +3,7 @@ import os
 import sys
 import tokenize
 
-from .pyvm2 import  VirtualMachine
+from .pyvm2 import VirtualMachine
 
 # This code is ripped off from coverage.py.  Define things it expects.
 try:
@@ -23,6 +23,7 @@ def exec_code_object(code, env):
 
 # from coverage.py:
 BUILTINS = sys.modules['builtins']
+
 
 def run_python_file(filename, args, package=None):
     """Run a python file as if it were the main program on the command line.
