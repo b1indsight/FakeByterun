@@ -88,7 +88,7 @@ class VirtualMachine:
                 raise VirtualMachineError(
                     "unknown bytecode type: %s" % byteName
                 )
-            bytecode_fn(*arguments)
+            return bytecode_fn(*arguments)
         except:
             log.exception("here is a exception")
 
@@ -149,11 +149,10 @@ class VirtualMachine:
                 self.log(byteName, arguments)
             if (byteName == '<0>'):
                 break
-            if (byteName == "RETURN_VALUE"):
-                self.return_value = self.pop()
+            state = self.dispatch(byteName, arguments)
+            if state == "return":
                 break
-            self.dispatch(byteName, arguments)
-
+        
     # BYTE CODE
     def NOP(self):
         pass
@@ -192,9 +191,12 @@ class VirtualMachine:
         func = self.pop()
         frame = self.frame
         code = func.func_code
-        
-        f = self.make_frame(code, args, {}, frame.f_globals, frame.f_locals)
-        self.run_frame(f)
+        tmpdic, i = {}, 0
+        for x in code.co_varnames:
+            tmpdic.update({x:args[i]})
+            i += 1
+        f = self.make_frame(code, args, tmpdic, frame.f_globals, frame.f_locals)
+        self.push(self.run_frame(f)) 
 
     def PRINT_ANSWER(self):
         answer = self.stack.pop()
@@ -203,22 +205,70 @@ class VirtualMachine:
     def PRINT_NOT_POP(self):
         print(self.stack[-1])
 
+    def jump(self, jump):
+        self.frame.last_instruction = jump
+
+    def JUMP_ABSOLUTE(self, jump):
+        self.jump(jump)
+
+    def POP_JUMP_IF_FALSE(self, jump):
+        val = self.pop()
+        if val:
+            self.push(val)
+            return
+        else:
+            self.jump(jump)
+
+    def RETURN_VALUE(self):
+        self.frame.f_back = self.pop()
+        retval = self.frame.f_back
+        self.pop_frame()
+        if not self.frame:
+            self.return_value = retval
+        else:
+            self.push(retval)
+        return "return"
+
+    #oprate
     def BINARY_ADD(self):
         first_num = self.pop()
         second_num = self.pop()
         total = first_num + second_num
         self.push(total)
 
-    def jump(self, jump):
-        self.pc = jump
+    def BINARY_MULTIPLY(self):
+        first_num = self.pop()
+        second_num = self.pop()
+        total = first_num * second_num
+        self.push(total)
 
-    def JUMP(self, jump):
-        self.jump(jump)
+    def BINARY_TRUE_DIVIDE(self):
+        first_num = self.pop()
+        second_num = self.pop()
+        total = first_num / second_num
+        self.push(total)
 
-    def POP_JUMP_IF_FALSE(self, jump):
-        val = self.stack.pop()
-        if val:
-            self.stack.append(val)
-            return
+    def INPLACE_SUBTRACT(self):
+        first_num = self.pop()
+        second_num = self.pop()
+        total = first_num - second_num
+        self.push(total)
+
+    def COMPARE_OP(self, arg):
+        #TODO: complete compare dic
+        compare_dic = [
+            lambda x, y: x,
+            lambda x, y: x,
+            lambda x, y: x == 0,
+            lambda x, y: x - y < 0,
+            lambda x, y: x - y > 0,
+        ]
+        second_num = self.pop()
+        first_num = self.pop()
+        if compare_dic[arg](first_num, second_num):
+            self.push(1)
         else:
-            self.jump(jump)
+            self.push(0)
+            
+
+    
