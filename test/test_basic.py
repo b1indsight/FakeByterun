@@ -57,3 +57,10 @@ class testBasic(vmtest):
             while a > 2:
                 a -= 1
             """)
+
+    def test_print(self):
+        self.assert_eval_OK("""\
+            print("test")
+            """)
+
+    

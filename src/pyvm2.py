@@ -157,12 +157,20 @@ class VirtualMachine:
     def NOP(self):
         pass
 
+    def POP_TOP(self):
+        self.pop()
+
     def LOAD_CONST(self, number):
         self.push(number)
         
 
     def LOAD_NAME(self, name):
-        self.push(self.frame.f_locals.get(name))
+        retval = self.frame.f_locals.get(name)
+        if not retval:
+            retval = self.frame.f_globals.get(name)
+            if not retval:
+                retval = self.frame.f_builtins.get(name)
+        self.push(retval)
 
     def STORE_NAME(self, name):
         val = self.pop()
@@ -185,10 +193,14 @@ class VirtualMachine:
         fn = Function(name, code, globs, defaults, None, self)
         self.push(fn)
 
-    #TODO: how to get function's arg name and store them into f_locals 
     def CALL_FUNCTION(self, arg):
         args = self.popn(arg)
         func = self.pop()
+        if func.__module__ == 'builtins':
+            if len(args) == 1:
+                args = args[0]
+            self.push(func(args))
+            return
         frame = self.frame
         code = func.func_code
         tmpdic, i = {}, 0
@@ -234,6 +246,12 @@ class VirtualMachine:
         first_num = self.pop()
         second_num = self.pop()
         total = first_num + second_num
+        self.push(total)
+
+    def BINARY_SUBTRACT(self):
+        first_num = self.pop()
+        second_num = self.pop()
+        total = first_num - second_num
         self.push(total)
 
     def BINARY_MULTIPLY(self):
