@@ -82,4 +82,28 @@ class testBasic(vmtest):
             print(a)
             """)
     
+    def test_break(self):
+        self.assert_eval_OK("""\
+            a = 5
+            while a > 1:
+                a = a - 1
+                if a == 2:
+                    break
+            print(a)
+            """)
     
+    def test_continue(self):
+        self.assert_eval_OK("""\
+            a = 5
+            while a > 1:
+                if a == 2:
+                    a = 0
+                    continue
+                a = a - 1
+            print(a)
+            """)
+
+    def test_basic_error(self):
+        self.assert_eval_OK("""\
+            pass
+            """)

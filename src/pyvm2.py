@@ -209,7 +209,7 @@ class VirtualMachine:
             self.jump(jump)
 
     def JUMP_FORWARD(self, jump):
-        self.jump(jump)
+        self.jump(self.last_instruction + jump)
 
     #oprate
     def BINARY_ADD(self):
@@ -219,8 +219,8 @@ class VirtualMachine:
         self.push(total)
 
     def BINARY_SUBTRACT(self):
-        first_num = self.pop()
         second_num = self.pop()
+        first_num = self.pop()
         total = first_num - second_num
         self.push(total)
 
@@ -247,7 +247,7 @@ class VirtualMachine:
         compare_dic = [
             lambda x, y: x,
             lambda x, y: x,
-            lambda x, y: x == 0,
+            lambda x, y: x == y,
             lambda x, y: x - y < 0,
             lambda x, y: x - y > 0,
         ]
@@ -270,14 +270,21 @@ class VirtualMachine:
     def CALL_FUNCTION(self, arg):
         args = self.popn(arg)
         func = self.pop()
-        if func.__module__ == 'builtins' or hasattr(func,'__call__'):
-            self.push(func(*args))
-            return
+
+        # builtin function and create class function
+        if hasattr(func, '__module__'):
+            if func.__module__ == 'builtins' or func.__module__ == 'src.pyvm2':
+                self.push(func(*args))
+                return
+
+        # class __init__ function 
+        # TODO：class define function should return the class , but this still return None  
         if isinstance(func, pyClass):
-            self.push(func.init(*args))
-            return
+            code = func.init.func_code
+        else:
+            code = func.func_code
+
         frame = self.frame
-        code = func.func_code
         tmpdic, i = {}, 0
         for x in code.co_varnames:
             tmpdic.update({x:args[i]})
