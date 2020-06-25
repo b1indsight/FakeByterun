@@ -63,4 +63,13 @@ class testBasic(vmtest):
             print("test")
             """)
 
+    def test_class(self):
+        self.assert_eval_OK("""\
+            class a:
+                def __init__(self):
+                    self.b = 0
+            c = a()
+            print(c.b)
+            """)
+    
     

@@ -2,6 +2,7 @@ import dis
 import sys
 from .function import Function
 from .frame import frame
+from .pyclass import pyClass
 import logging
 
 log = logging.getLogger(__name__)
@@ -154,6 +155,7 @@ class VirtualMachine:
                 break
         
     # BYTE CODE
+    #-------------------------------------------------------
     def NOP(self):
         pass
 
@@ -185,31 +187,6 @@ class VirtualMachine:
             )
         self.push(val)
 
-    def MAKE_FUNCTION(self, argc):
-        name = self.pop()
-        code = self.pop()
-        defaults = self.popn(argc)
-        globs = self.frame.f_globals
-        fn = Function(name, code, globs, defaults, None, self)
-        self.push(fn)
-
-    def CALL_FUNCTION(self, arg):
-        args = self.popn(arg)
-        func = self.pop()
-        if func.__module__ == 'builtins':
-            if len(args) == 1:
-                args = args[0]
-            self.push(func(args))
-            return
-        frame = self.frame
-        code = func.func_code
-        tmpdic, i = {}, 0
-        for x in code.co_varnames:
-            tmpdic.update({x:args[i]})
-            i += 1
-        f = self.make_frame(code, args, tmpdic, frame.f_globals, frame.f_locals)
-        self.push(self.run_frame(f)) 
-
     def PRINT_ANSWER(self):
         answer = self.stack.pop()
         print(answer)
@@ -230,16 +207,6 @@ class VirtualMachine:
             return
         else:
             self.jump(jump)
-
-    def RETURN_VALUE(self):
-        self.frame.f_back = self.pop()
-        retval = self.frame.f_back
-        self.pop_frame()
-        if not self.frame:
-            self.return_value = retval
-        else:
-            self.push(retval)
-        return "return"
 
     #oprate
     def BINARY_ADD(self):
@@ -287,6 +254,55 @@ class VirtualMachine:
             self.push(1)
         else:
             self.push(0)
-            
-
     
+    #function oprate
+    def MAKE_FUNCTION(self, argc):
+        name = self.pop()
+        code = self.pop()
+        defaults = self.popn(argc)
+        globs = self.frame.f_globals
+        fn = Function(name, code, globs, defaults, None, self)
+        self.push(fn)
+
+    def CALL_FUNCTION(self, arg):
+        args = self.popn(arg)
+        func = self.pop()
+        if func.__module__ == 'builtins' or hasattr(func,'__call__'):
+            self.push(func(*args))
+            return
+        if isinstance(func, pyClass):
+            self.push(func.init(*args))
+            return
+        frame = self.frame
+        code = func.func_code
+        tmpdic, i = {}, 0
+        for x in code.co_varnames:
+            tmpdic.update({x:args[i]})
+            i += 1
+        f = self.make_frame(code, args, tmpdic, frame.f_globals, frame.f_locals)
+        self.push(self.run_frame(f)) 
+
+    def RETURN_VALUE(self):
+        self.frame.f_back = self.pop()
+        retval = self.frame.f_back
+        self.pop_frame()
+        if not self.frame:
+            self.return_value = retval
+        else:
+            self.push(retval)
+        return "return"
+
+    #class oprate
+    def LOAD_BUILD_CLASS(self):
+        def create_class(func, name):
+            return pyClass(func, name)
+        self.push(create_class)
+
+    def LOAD_ATTR(self, attr):
+        obj = self.pop()
+        val = obj.getattr(attr)
+        self.push(val)
+
+    def STORE_ATTR(self, attr):
+        val, obj = self.popn(2)
+        obj.storeattr()
