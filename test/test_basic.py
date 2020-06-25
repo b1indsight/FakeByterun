@@ -71,5 +71,15 @@ class testBasic(vmtest):
             c = a()
             print(c.b)
             """)
+
+    def test_if(self):
+        self.assert_eval_OK("""\
+            a = 0
+            if a > 0:
+                pass
+            else:
+                a + 1
+            print(a)
+            """)
     
     

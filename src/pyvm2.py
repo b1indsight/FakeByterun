@@ -168,9 +168,9 @@ class VirtualMachine:
 
     def LOAD_NAME(self, name):
         retval = self.frame.f_locals.get(name)
-        if not retval:
+        if retval == None:
             retval = self.frame.f_globals.get(name)
-            if not retval:
+            if retval == None:
                 retval = self.frame.f_builtins.get(name)
         self.push(retval)
 
@@ -207,6 +207,9 @@ class VirtualMachine:
             return
         else:
             self.jump(jump)
+
+    def JUMP_FORWARD(self, jump):
+        self.jump(jump)
 
     #oprate
     def BINARY_ADD(self):
