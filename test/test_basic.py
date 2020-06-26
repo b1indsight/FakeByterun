@@ -105,5 +105,10 @@ class testBasic(vmtest):
 
     def test_basic_error(self):
         self.assert_eval_OK("""\
-            pass
+            x = 10
+            while x > 0:
+                try:
+                    break
+                finally:
+                    print("Exiting loop")
             """)

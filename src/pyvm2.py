@@ -6,6 +6,7 @@ from .pyclass import pyClass
 import logging
 
 log = logging.getLogger(__name__)
+Block = collections.namedtuple("Block", "type, handler, stack_height")
 
 class VirtualMachineError():
     pass
@@ -153,7 +154,17 @@ class VirtualMachine:
             state = self.dispatch(byteName, arguments)
             if state == "return":
                 break
-        
+
+    def pop_block(self):
+        f = self.frame
+        return f.block_stack.pop()
+
+    def push_block(self, b_type, handle=None, level=None):
+        f = self.frame
+        if level is None:
+            level = len(f.stack)
+        f.block_stack.append(block(b_type, handle, level))
+
     # BYTE CODE
     #-------------------------------------------------------
     def NOP(self):
