@@ -1,4 +1,4 @@
-class pyClass:
+class PyClass:
     """
     Create a class obj, in python interpretator 
 
@@ -11,16 +11,16 @@ class pyClass:
         self.local_names = {}
         self.init = func
 
-    def storeattr(self, attr:dict):
+    def store_attr(self, attr:dict):
         self.local_names.update(attr)
 
-    def getattr(self, attr):
+    def get_attr(self, attr):
         retval = self.local_names.get(attr)
         if retval:
             pass
         else:
             for e in self.extend:
-                retval = e.getattr(attr)
+                retval = e.get_attr(attr)
                 if retval:
                     break
         return retval

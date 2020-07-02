@@ -2,11 +2,12 @@ import dis
 import sys
 from .function import Function
 from .frame import frame
-from .pyclass import pyClass
+from .pyclass import PyClass
 import logging
+import collections
 
 log = logging.getLogger(__name__)
-Block = collections.namedtuple("Block", "type, handler, stack_height")
+block = collections.namedtuple("Block", "type, handler, stack_height")
 
 class VirtualMachineError():
     pass
@@ -290,7 +291,7 @@ class VirtualMachine:
 
         # class __init__ function 
         # TODO：class define function should return the class , but this still return None  
-        if isinstance(func, pyClass):
+        if isinstance(func, PyClass):
             code = func.init.func_code
         else:
             code = func.func_code
@@ -316,14 +317,14 @@ class VirtualMachine:
     #class oprate
     def LOAD_BUILD_CLASS(self):
         def create_class(func, name):
-            return pyClass(func, name)
+            return PyClass(func, name)
         self.push(create_class)
 
     def LOAD_ATTR(self, attr):
         obj = self.pop()
-        val = obj.getattr(attr)
+        val = obj.get_attr(attr)
         self.push(val)
 
     def STORE_ATTR(self, attr):
         val, obj = self.popn(2)
-        obj.storeattr()
+        obj.store_attr()
