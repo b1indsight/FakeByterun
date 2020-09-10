@@ -13,7 +13,7 @@ class frame:
             local_names {[type]} -- local name space
             prev_frame {[type]} -- [description]
         """
-        self.f_code = code_obj
+        self.f_code = code_obj   
         self.f_globals = global_names
         self.f_locals = local_names
         self.f_back = prev_frame
